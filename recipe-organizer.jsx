@@ -1853,7 +1853,7 @@ export default function RecipeOrganizer() {
             })}
           </div>
 
-          <div style={ds.calendarSelectedDate}>What she baked on {fmtDate(calendarDate)}</div>
+          <div style={ds.calendarSelectedDate}>What I baked on {fmtDate(calendarDate)}</div>
 
           {selectedDateEntries.length === 0 ? (
             <div style={{ ...ds.emptyState, paddingTop: 24, paddingBottom: 20 }}>
@@ -1913,7 +1913,7 @@ export default function RecipeOrganizer() {
                 rows={3}
                 value={bakeLogDraft.notes}
                 onChange={(e) => setBakeLogDraft((prev) => ({ ...prev, notes: e.target.value }))}
-                placeholder="What did she bake today? How did it turn out?"
+                placeholder="What did I bake today? How did it turn out?"
               />
             </div>
 

@@ -1,0 +1,37 @@
+My Little Bakery - Run and Test Guide
+
+1) Open a terminal in the project folder:
+cd "/Users/kevin/Documents/Coding Projects/My Little Bakery"
+
+2) Install dependencies (first time only):
+npm install
+
+3) Start the app:
+npm run dev -- --host 127.0.0.1 --port 4173 --strictPort
+
+4) Open in browser:
+http://127.0.0.1:4173/
+
+5) Quick test checklist:
+- Home screen loads without errors.
+- Tap the calendar icon in the top-right.
+- In Calendar view, click a day.
+- Add a day log:
+  - Choose a recipe (or leave as custom bake)
+  - Add notes
+  - Upload one or more photos
+  - Click "Save Day Entry"
+- Confirm the entry appears under that selected date.
+- Open a recipe detail and click "Made It + Log".
+- Confirm it opens Calendar and preselects today.
+
+6) Build test (optional but recommended):
+npm run build
+
+7) Stop the dev server:
+- If running in foreground terminal: press Ctrl + C
+
+8) If the port is still busy, find and kill the process:
+lsof -nP -iTCP:4173 -sTCP:LISTEN
+kill <PID>
+
