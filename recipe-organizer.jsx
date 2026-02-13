@@ -2162,7 +2162,7 @@ const getStyles = (colors) => ({
   },
   toast: {
     position: "fixed",
-    top: 20,
+    top: "calc(env(safe-area-inset-top, 0px) + 12px)",
     left: "50%",
     transform: "translateX(-50%)",
     background: colors.text,
@@ -2190,10 +2190,9 @@ const getStyles = (colors) => ({
     fontFamily: "inherit",
   },
   screen: {
-    padding: "16px 16px env(safe-area-inset-bottom)",
+    padding: "calc(env(safe-area-inset-top, 0px) + 16px) 16px 100px 16px",
     overflowY: "auto",
     minHeight: "100vh",
-    paddingBottom: 100,
   },
 
   // Home
@@ -3145,7 +3144,7 @@ const getStyles = (colors) => ({
     background: colors.bg,
     display: "flex",
     flexDirection: "column",
-    padding: "16px 20px env(safe-area-inset-bottom)",
+    padding: "calc(env(safe-area-inset-top, 0px) + 16px) 20px env(safe-area-inset-bottom)",
     maxWidth: 480,
     margin: "0 auto",
     boxSizing: "border-box",
