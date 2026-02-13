@@ -1317,6 +1317,12 @@ export default function RecipeOrganizer() {
             )}
           </div>
 
+        </div>
+      )}
+
+      {/* FAB - outside scrollable home view so it stays fixed on mobile */}
+      {view === "home" && !viewTransition && (
+        <>
           {/* FAB overlay */}
           {fabExpanded && (
             <div style={ds.fabOverlay} onClick={() => setFabExpanded(false)} />
@@ -1350,7 +1356,7 @@ export default function RecipeOrganizer() {
             </div>
           )}
 
-          {/* FAB */}
+          {/* FAB button */}
           <button
             style={{
               ...ds.fab,
@@ -1364,7 +1370,7 @@ export default function RecipeOrganizer() {
           >
             {Icons.plus({ size: 28, color: "#fff" })}
           </button>
-        </div>
+        </>
       )}
 
       {/* ─── DETAIL VIEW ─── */}
