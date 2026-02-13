@@ -129,14 +129,15 @@ const WEEK_DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 // ─── Photo helpers ───
 const fileToDataUrl = (file) =>
-  new Promise((resolve) => {
+  new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error("Failed to read file"));
     reader.readAsDataURL(file);
   });
 
 const compressImage = (dataUrl, maxWidth = 800) =>
-  new Promise((resolve) => {
+  new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
       const canvas = document.createElement("canvas");
@@ -147,6 +148,7 @@ const compressImage = (dataUrl, maxWidth = 800) =>
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
       resolve(canvas.toDataURL("image/jpeg", 0.7));
     };
+    img.onerror = () => reject(new Error("Failed to load image"));
     img.src = dataUrl;
   });
 
@@ -436,9 +438,10 @@ const useSwipe = (onSwipeLeft, onSwipeRight, threshold = 80) => {
 };
 
 // ─── Icons as inline SVG components ───
-const Icon = ({ d, size = 20, color = "currentColor", ...props }) => (
+const Icon = ({ d, size = 20, color = "currentColor", children, ...props }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-    <path d={d} />
+    {d && <path d={d} />}
+    {children}
   </svg>
 );
 
@@ -813,7 +816,7 @@ export default function RecipeOrganizer() {
     const [year, month] = calendarMonth.split("-").map(Number);
     if (!year || !month) return [];
     const firstDay = new Date(year, month - 1, 1);
-    const daysInMonth = new Date(year, month, 0).getDate;
+    const daysInMonth = new Date(year, month, 0).getDate();
     const leading = firstDay.getDay();
     const cells = Array.from({ length: leading }, () => null);
     for (let day = 1; day <= daysInMonth; day++) {
