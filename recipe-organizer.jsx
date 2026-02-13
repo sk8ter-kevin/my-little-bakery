@@ -9,8 +9,12 @@ const STORAGE_KEY = "zions-recipes-v2";
 
 const loadData = async () => {
   try {
-    const result = await window.storage.get(STORAGE_KEY);
-    return result ? JSON.parse(result.value) : null;
+    if (window.storage?.get) {
+      const result = await window.storage.get(STORAGE_KEY);
+      return result ? JSON.parse(result.value) : null;
+    }
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
   } catch {
     return null;
   }
@@ -18,7 +22,12 @@ const loadData = async () => {
 
 const saveData = async (data) => {
   try {
-    await window.storage.set(STORAGE_KEY, JSON.stringify(data));
+    const json = JSON.stringify(data);
+    if (window.storage?.set) {
+      await window.storage.set(STORAGE_KEY, json);
+    } else {
+      localStorage.setItem(STORAGE_KEY, json);
+    }
   } catch (e) {
     console.error("Save failed:", e);
   }
