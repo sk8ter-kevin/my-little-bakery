@@ -543,7 +543,7 @@ export default function RecipeOrganizer() {
   const [splashDone, setSplashDone] = useState(false);
   const [viewTransition, setViewTransition] = useState(null); // { from, to, direction }
   const [bouncingHeartId, setBouncingHeartId] = useState(null);
-  const [fabPressed, setFabPressed] = useState(false);
+
   const [poppedCheck, setPoppedCheck] = useState(null);
   // Feature 4: Cooking mode
   const [cookingSteps, setCookingSteps] = useState([]);
@@ -1096,6 +1096,7 @@ export default function RecipeOrganizer() {
         @keyframes timerPulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
         @keyframes bottomSheetUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
         @keyframes backdropFadeIn { from{opacity:0} to{opacity:1} }
+        .fab-btn:active { transform: scale(0.88) !important; }
       `}</style>
       {/* Toast */}
       {toast && (
@@ -1358,14 +1359,12 @@ export default function RecipeOrganizer() {
 
           {/* FAB button */}
           <button
+            className="fab-btn"
             style={{
               ...ds.fab,
-              transform: fabExpanded ? "rotate(45deg)" : fabPressed ? "scale(0.88)" : "scale(1)",
+              transform: fabExpanded ? "rotate(45deg)" : "scale(1)",
               transition: "transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
             }}
-            onPointerDown={() => !fabExpanded && setFabPressed(true)}
-            onPointerUp={() => setFabPressed(false)}
-            onPointerLeave={() => setFabPressed(false)}
             onClick={() => { haptic("light"); setFabExpanded((prev) => !prev); }}
           >
             {Icons.plus({ size: 28, color: "#fff" })}
