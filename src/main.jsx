@@ -11,3 +11,13 @@ ReactDOM.createRoot(document.getElementById("root")).render(
     <RecipeOrganizer />
   </React.StrictMode>
 );
+
+// ─── PWA: register service worker + request persistent storage ───
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  });
+}
+if (navigator.storage?.persist) {
+  navigator.storage.persist();
+}
