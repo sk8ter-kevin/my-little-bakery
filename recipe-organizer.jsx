@@ -522,6 +522,8 @@ export default function RecipeOrganizer() {
   const [view, setView] = useState("home"); // home, detail, edit, shopping, suggest, calendar, cooking
   const [selectedRecipe, setSelectedRecipe] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchDisplay, setSearchDisplay] = useState("");
+  const searchDebounceRef = useRef(null);
   const [activeCategory, setActiveCategory] = useState("All");
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [scaleFactor, setScaleFactor] = useState(1);
@@ -593,10 +595,15 @@ export default function RecipeOrganizer() {
     }
   }, [loading]);
 
-  // Save on change
+  // Save on change (debounced to avoid blocking the UI)
+  const saveTimerRef = useRef(null);
   useEffect(() => {
     if (!loading) {
-      saveData({ recipes, darkMode, sortBy, recentlyViewed, bakeLogEntries });
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = setTimeout(() => {
+        saveData({ recipes, darkMode, sortBy, recentlyViewed, bakeLogEntries });
+      }, 400);
+      return () => clearTimeout(saveTimerRef.current);
     }
   }, [recipes, loading, darkMode, sortBy, recentlyViewed, bakeLogEntries]);
 
@@ -671,7 +678,7 @@ export default function RecipeOrganizer() {
       );
     }, 1000);
     return () => clearInterval(interval);
-  }, [timers.length, timers.some?.((t) => t.active)]);
+  }, [timers.length, timers.some((t) => t.active)]);
 
   const addTimer = (label, minutes) => {
     haptic("medium");
@@ -836,7 +843,7 @@ export default function RecipeOrganizer() {
   }, [calendarMonth]);
 
   // ─── Suggest recipes based on ingredients ───
-  const suggestedRecipes = ingredientSearch
+  const suggestedRecipes = useMemo(() => ingredientSearch
     ? recipes
         .map((r) => {
           const searchTerms = ingredientSearch.toLowerCase().split(",").map((s) => s.trim()).filter(Boolean);
@@ -847,7 +854,7 @@ export default function RecipeOrganizer() {
         })
         .filter((r) => r.matchCount > 0)
         .sort((a, b) => b.matchPercent - a.matchPercent)
-    : [];
+    : [], [ingredientSearch, recipes]);
 
   // ─── Shopping list generation ───
   const generateShoppingList = (recipe, scale = 1) => {
@@ -1160,11 +1167,16 @@ export default function RecipeOrganizer() {
             <input
               style={ds.searchInput}
               placeholder="Search recipes, ingredients, tags..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              value={searchDisplay}
+              onChange={(e) => {
+                const v = e.target.value;
+                setSearchDisplay(v);
+                if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+                searchDebounceRef.current = setTimeout(() => setSearchQuery(v), 200);
+              }}
             />
-            {searchQuery && (
-              <button style={ds.searchClear} onClick={() => setSearchQuery("")}>
+            {searchDisplay && (
+              <button style={ds.searchClear} onClick={() => { setSearchDisplay(""); setSearchQuery(""); }}>
                 {Icons.x({ size: 16 })}
               </button>
             )}
@@ -1225,7 +1237,7 @@ export default function RecipeOrganizer() {
                   <button key={id} style={ds.recentItem} onClick={() => openRecipeDetail(r)}>
                     <div style={ds.recentAvatar}>
                       {r.photo ? (
-                        <img src={r.photo} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }} />
+                        <img loading="lazy" src={r.photo} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }} />
                       ) : (
                         <span style={{ fontSize: 20 }}>{EMOJI_MAP[r.category] || "🧁"}</span>
                       )}
@@ -1261,7 +1273,7 @@ export default function RecipeOrganizer() {
                         width: "100%", height: 160, borderRadius: 12, overflow: "hidden",
                         marginBottom: 12, background: c.warm,
                       }}>
-                        <img src={recipe.photo} alt={recipe.name} style={{
+                        <img loading="lazy" src={recipe.photo} alt={recipe.name} style={{
                           width: "100%", height: "100%", objectFit: "cover", display: "block",
                         }} />
                       </div>
@@ -1543,7 +1555,6 @@ export default function RecipeOrganizer() {
               ref={photoInputRef}
               type="file"
               accept="image/*"
-              capture="environment"
               onChange={handlePhoto}
               style={{ display: "none" }}
             />
@@ -1579,7 +1590,7 @@ export default function RecipeOrganizer() {
                 onClick={() => photoInputRef.current?.click()}
               >
                 {Icons.camera({ size: 28, color: c.accent })}
-                <span>Snap a photo of your bake</span>
+                <span>Add a photo from camera or gallery</span>
               </button>
             )}
           </div>
@@ -1890,7 +1901,7 @@ export default function RecipeOrganizer() {
                   {entry.photos?.length > 0 && (
                     <div style={ds.calendarEntryPhotos}>
                       {entry.photos.map((photo, idx) => (
-                        <img key={`${entry.id}-${idx}`} src={photo} alt="" style={ds.calendarEntryPhoto} />
+                        <img loading="lazy" key={`${entry.id}-${idx}`} src={photo} alt="" style={ds.calendarEntryPhoto} />
                       ))}
                     </div>
                   )}
