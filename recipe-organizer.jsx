@@ -565,6 +565,7 @@ export default function RecipeOrganizer() {
   const photoInputRef = useRef(null);
   const bakeLogPhotoInputRef = useRef(null);
   const scrollRef = useRef(null);
+  const cardsAnimatedRef = useRef(false);
 
   // Themed colors
   const c = useMemo(() => (darkMode ? darkColors : lightColors), [darkMode]);
@@ -594,6 +595,16 @@ export default function RecipeOrganizer() {
       return () => clearTimeout(t);
     }
   }, [loading]);
+
+  // Mark card animations as done after initial stagger, reset when leaving home
+  useEffect(() => {
+    if (view === "home") {
+      const t = setTimeout(() => { cardsAnimatedRef.current = true; }, 600);
+      return () => clearTimeout(t);
+    } else {
+      cardsAnimatedRef.current = false;
+    }
+  }, [view]);
 
   // Save on change (debounced to avoid blocking the UI)
   const saveTimerRef = useRef(null);
@@ -1262,7 +1273,7 @@ export default function RecipeOrganizer() {
               filtered.map((recipe, i) => (
                 <SwipeCard key={recipe.id} recipe={recipe}>
                   <button
-                    style={{ ...ds.recipeCard, animation: `cardFadeIn 0.3s ease ${i * 0.05}s both` }}
+                    style={{ ...ds.recipeCard, ...(cardsAnimatedRef.current ? {} : { animation: `cardFadeIn 0.3s ease ${i * 0.05}s both` }) }}
                     onPointerDown={() => { longPressTimerRef.current = setTimeout(() => openContextMenu(recipe), 500); }}
                     onPointerUp={() => { if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current); }}
                     onPointerLeave={() => { if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current); }}
