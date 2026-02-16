@@ -1638,9 +1638,13 @@ export default function RecipeOrganizer() {
               <label style={ds.formLabel}>Servings</label>
               <input
                 style={ds.formInput}
-                type="number"
+                type="text"
+                inputMode="numeric"
                 value={editForm.servings}
-                onChange={(e) => setEditForm({ ...editForm, servings: +e.target.value })}
+                onChange={(e) => {
+                  const v = e.target.value.replace(/[^0-9]/g, '');
+                  setEditForm({ ...editForm, servings: v === '' ? '' : +v });
+                }}
               />
             </div>
           </div>
@@ -1650,18 +1654,26 @@ export default function RecipeOrganizer() {
               <label style={ds.formLabel}>Prep (min)</label>
               <input
                 style={ds.formInput}
-                type="number"
+                type="text"
+                inputMode="numeric"
                 value={editForm.prepTime}
-                onChange={(e) => setEditForm({ ...editForm, prepTime: +e.target.value })}
+                onChange={(e) => {
+                  const v = e.target.value.replace(/[^0-9]/g, '');
+                  setEditForm({ ...editForm, prepTime: v === '' ? '' : +v });
+                }}
               />
             </div>
             <div style={{ ...ds.formGroup, flex: 1 }}>
               <label style={ds.formLabel}>Cook (min)</label>
               <input
                 style={ds.formInput}
-                type="number"
+                type="text"
+                inputMode="numeric"
                 value={editForm.cookTime}
-                onChange={(e) => setEditForm({ ...editForm, cookTime: +e.target.value })}
+                onChange={(e) => {
+                  const v = e.target.value.replace(/[^0-9]/g, '');
+                  setEditForm({ ...editForm, cookTime: v === '' ? '' : +v });
+                }}
               />
             </div>
           </div>
@@ -1673,11 +1685,13 @@ export default function RecipeOrganizer() {
               <div key={i} style={ds.ingEditRow}>
                 <input
                   style={{ ...ds.formInput, width: 60, flexShrink: 0 }}
-                  type="number"
+                  type="text"
+                  inputMode="decimal"
                   value={ing.amount}
                   onChange={(e) => {
+                    const v = e.target.value.replace(/[^0-9.]/g, '');
                     const ings = [...editForm.ingredients];
-                    ings[i] = { ...ings[i], amount: +e.target.value };
+                    ings[i] = { ...ings[i], amount: v === '' ? '' : +v };
                     setEditForm({ ...editForm, ingredients: ings });
                   }}
                 />
