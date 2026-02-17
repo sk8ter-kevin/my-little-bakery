@@ -574,7 +574,7 @@ export default function RecipeOrganizer() {
   useEffect(() => {
     (async () => {
       const data = await loadData();
-      if (data?.recipes?.length) {
+      if (Array.isArray(data?.recipes)) {
         setRecipes(data.recipes);
       } else {
         setRecipes(SAMPLE_RECIPES);
