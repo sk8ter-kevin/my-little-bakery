@@ -1557,7 +1557,10 @@ export default function RecipeOrganizer() {
             <button style={ds.backBtn} onClick={() => navigateTo(editForm.id ? "detail" : "home", "back")}>
               {Icons.x({ size: 20 })} Cancel
             </button>
-            <button style={ds.saveBtn} onClick={() => saveRecipe(editForm)}>
+            <button style={ds.saveBtn} onClick={() => saveRecipe({
+              ...editForm,
+              ingredients: editForm.ingredients?.map((ing) => ({ ...ing, amount: ing.amount === '' ? '' : +ing.amount || 0 })),
+            })}>
               Save
             </button>
           </div>
@@ -1689,9 +1692,9 @@ export default function RecipeOrganizer() {
                   inputMode="decimal"
                   value={ing.amount}
                   onChange={(e) => {
-                    const v = e.target.value.replace(/[^0-9.]/g, '');
+                    const v = e.target.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
                     const ings = [...editForm.ingredients];
-                    ings[i] = { ...ings[i], amount: v === '' ? '' : +v };
+                    ings[i] = { ...ings[i], amount: v };
                     setEditForm({ ...editForm, ingredients: ings });
                   }}
                 />
