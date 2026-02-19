@@ -1,6 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import RecipeOrganizer from "../recipe-organizer.jsx";
+import RecipeOrganizer from "./App.jsx";
 
 // Reset default browser styles
 document.documentElement.style.cssText = "height:100%;margin:0;padding:0;";
@@ -15,7 +15,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
 // ─── PWA: register service worker + request persistent storage ───
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js").catch(() => {});
+    navigator.serviceWorker.register("/sw.js").catch(() => { });
   });
 }
 if (navigator.storage?.persist) {
