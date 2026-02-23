@@ -72,6 +72,18 @@ const Icons = {
             <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
         </svg>
     ),
+    stats: (p) => (
+        <svg width={p?.size || 20} height={p?.size || 20} viewBox="0 0 24 24" fill="none" stroke={p?.color || "currentColor"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="12" width="4" height="9" rx="1" />
+            <rect x="10" y="6" width="4" height="15" rx="1" />
+            <rect x="17" y="2" width="4" height="19" rx="1" />
+        </svg>
+    ),
+    fire: (p) => (
+        <svg width={p?.size || 20} height={p?.size || 20} viewBox="0 0 24 24" fill={p?.filled ? p?.color || "#e74c3c" : "none"} stroke={p?.color || "currentColor"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 23c-3.866 0-7-3.134-7-7 0-3 2-6 4-8 0 3 2 4 3 4 0-3 1.5-6 4-9 1 2 3 5 3 9 0 1-.5 3-1 4 1-1 2-2.5 2-4 .5 1.5 1 3 1 5 0 3.866-3.134 6-9 6z" />
+        </svg>
+    ),
 };
 
 export default Icons;

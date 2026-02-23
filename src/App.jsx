@@ -55,6 +55,7 @@ export default function RecipeOrganizer() {
     const bakeLogPhotoInputRef = useRef(null);
     const scrollRef = useRef(null);
     const cardsAnimatedRef = useRef(false);
+    const [statsMonth, setStatsMonth] = useState(() => getMonthISO());
 
     const c = useMemo(() => (darkMode ? darkColors : lightColors), [darkMode]);
 
@@ -341,6 +342,89 @@ export default function RecipeOrganizer() {
         }).filter((r) => r.matchCount > 0).sort((a, b) => b.matchPercent - a.matchPercent)
         : [], [ingredientSearch, recipes]);
 
+    // ─── Stats Dashboard computations ───
+    const bakingStats = useMemo(() => {
+        // Total bakes from bake log entries
+        const totalBakes = bakeLogEntries.length;
+
+        // Most-baked recipe (by timesCooked)
+        const mostBaked = recipes.reduce((best, r) => (!best || (r.timesCooked || 0) > (best.timesCooked || 0)) ? r : best, null);
+
+        // Favorite category (by bake count across recipes)
+        const categoryCounts = {};
+        recipes.forEach((r) => {
+            if (r.category && r.category !== "All") {
+                categoryCounts[r.category] = (categoryCounts[r.category] || 0) + (r.timesCooked || 0);
+            }
+        });
+        // Also count from bake log entries
+        bakeLogEntries.forEach((entry) => {
+            const recipe = recipes.find((r) => r.id === entry.recipeId);
+            if (recipe?.category && recipe.category !== "All") {
+                categoryCounts[recipe.category] = (categoryCounts[recipe.category] || 0);
+            }
+        });
+        const favCategory = Object.entries(categoryCounts).sort((a, b) => b[1] - a[1])[0];
+
+        // Category breakdown for bar chart
+        const categoryBreakdown = CATEGORIES.filter((c) => c !== "All").map((cat) => ({
+            name: cat,
+            count: categoryCounts[cat] || 0,
+            emoji: EMOJI_MAP[cat] || "🧁",
+        })).sort((a, b) => b.count - a.count);
+        const maxCategoryCount = Math.max(1, ...categoryBreakdown.map((c) => c.count));
+
+        // Baking streak (consecutive days with at least one bake log entry, ending today or most recent)
+        const datesWithBakes = new Set(bakeLogEntries.map((e) => e.date));
+        let streak = 0;
+        const today = new Date();
+        const checkDate = new Date(today);
+        // Start from today and go backwards
+        // If today has no entry, start from the most recent day that does
+        if (!datesWithBakes.has(checkDate.toISOString().split("T")[0])) {
+            // Check if there was a bake yesterday (still counts as active streak)
+            const yesterday = new Date(today);
+            yesterday.setDate(yesterday.getDate() - 1);
+            if (datesWithBakes.has(yesterday.toISOString().split("T")[0])) {
+                checkDate.setDate(checkDate.getDate() - 1);
+            }
+        }
+        while (datesWithBakes.has(checkDate.toISOString().split("T")[0])) {
+            streak++;
+            checkDate.setDate(checkDate.getDate() - 1);
+        }
+
+        return { totalBakes, mostBaked, favCategory, categoryBreakdown, maxCategoryCount, streak };
+    }, [recipes, bakeLogEntries]);
+
+    const statsHeatmapData = useMemo(() => {
+        const [year, month] = statsMonth.split("-").map(Number);
+        if (!year || !month) return { cells: [], entriesByDate: {} };
+        const firstDay = new Date(year, month - 1, 1);
+        const daysInMonth = new Date(year, month, 0).getDate();
+        const leading = firstDay.getDay();
+        const cells = Array.from({ length: leading }, () => null);
+        const entriesByDate = {};
+        for (let day = 1; day <= daysInMonth; day++) {
+            const dayString = `${statsMonth}-${String(day).padStart(2, "0")}`;
+            cells.push(dayString);
+            entriesByDate[dayString] = 0;
+        }
+        bakeLogEntries.forEach((entry) => {
+            if (entry.date && entry.date.startsWith(statsMonth)) {
+                entriesByDate[entry.date] = (entriesByDate[entry.date] || 0) + 1;
+            }
+        });
+        const maxCount = Math.max(1, ...Object.values(entriesByDate));
+        return { cells, entriesByDate, maxCount };
+    }, [statsMonth, bakeLogEntries]);
+
+    const shiftStatsMonth = (offset) => {
+        const [year, month] = statsMonth.split("-").map(Number);
+        const next = new Date(year, month - 1 + offset, 1);
+        setStatsMonth(`${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}`);
+    };
+
     const generateShoppingList = (recipe, scale = 1) => {
         const items = recipe.ingredients.map((ing) => ({
             name: ing.name, amount: +(ing.amount * scale).toFixed(2), unit: ing.unit, recipe: recipe.name, checked: false,
@@ -542,6 +626,7 @@ export default function RecipeOrganizer() {
                         </div>
                         <div style={{ display: "flex", gap: 8 }}>
                             <button style={ds.iconBtn} onClick={() => setDarkMode(!darkMode)} title={darkMode ? "Light mode" : "Dark mode"}>{darkMode ? Icons.sun({ size: 22 }) : Icons.moon({ size: 22 })}</button>
+                            <button style={ds.iconBtn} onClick={() => navigateTo("stats", "forward")} title="Baking Stats">{Icons.stats({ size: 22 })}</button>
                             <button style={ds.iconBtn} onClick={() => openCalendarForDate()}>{Icons.calendar({ size: 22 })}</button>
                             <button style={ds.iconBtn} onClick={() => { setIngredientSearch(""); navigateTo("suggest", "forward"); }}>{Icons.suggest({ size: 22 })}</button>
                             <button style={ds.iconBtn} onClick={() => navigateTo("shopping", "forward")}>{Icons.cart({ size: 22 })}{shoppingList.length > 0 && <span style={ds.badge}>{shoppingList.length}</span>}</button>
@@ -839,6 +924,138 @@ export default function RecipeOrganizer() {
                     <div style={ds.formGroup}><input style={ds.formInput} value={ingredientSearch} onChange={(e) => setIngredientSearch(e.target.value)} placeholder="e.g. butter, flour, eggs, chocolate" /></div>
                     {ingredientSearch && suggestedRecipes.length === 0 && (<div style={ds.emptyState}><div style={{ fontSize: 48, marginBottom: 12 }}>🤔</div><p style={{ color: c.textLight, fontSize: 15 }}>No matching recipes found</p><p style={{ color: c.textLight, fontSize: 13, marginTop: 4, opacity: 0.7 }}>Try different ingredients</p></div>)}
                     {suggestedRecipes.map((recipe) => (<button key={recipe.id} style={ds.suggestCard} onClick={() => openRecipeDetail(recipe)}><div style={ds.suggestTop}><h3 style={ds.suggestName}>{recipe.name}</h3><div style={ds.matchBadge}>{recipe.matchPercent}% match</div></div><p style={ds.suggestMeta}>{recipe.matchCount} of {recipe.ingredients.length} ingredients · {recipe.category}</p></button>))}
+                </div>
+            )}
+
+            {/* ─── STATS DASHBOARD VIEW ─── */}
+            {getViewAnim("stats") !== null && (
+                <div style={{ ...ds.screen, ...getViewAnim("stats") }}>
+                    <div style={ds.detailNav}><button style={ds.backBtn} onClick={() => navigateTo("home", "back")}>{Icons.back({ size: 20 })} Back</button></div>
+                    <div style={ds.dashboardHeader}>
+                        <span style={{ fontSize: 28 }}>📊</span>
+                        <h1 style={ds.dashboardTitle}>Baking Stats</h1>
+                    </div>
+                    <p style={ds.dashboardSubtitle}>Your baking journey at a glance</p>
+
+                    {/* Summary stat cards */}
+                    <div style={ds.statsGrid}>
+                        <div style={ds.statCard}>
+                            <div style={ds.statCardIcon}>🧁</div>
+                            <div style={ds.statCardLabel}>Total Bakes</div>
+                            <div style={ds.statCardValue}>{bakingStats.totalBakes}</div>
+                            <div style={ds.statCardSub}>{bakingStats.totalBakes === 1 ? "entry" : "entries"} logged</div>
+                        </div>
+                        <div style={ds.statCard}>
+                            <div style={ds.statCardIcon}>{Icons.fire({ size: 18, color: bakingStats.streak > 0 ? c.accent : c.textLight })}</div>
+                            <div style={ds.statCardLabel}>Baking Streak</div>
+                            <div style={ds.streakRow}>
+                                <span style={ds.streakNumber}>{bakingStats.streak}</span>
+                                <div>
+                                    <div style={ds.streakUnit}>{bakingStats.streak === 1 ? "day" : "days"}</div>
+                                    {bakingStats.streak > 0 && <div style={ds.streakSub}>Keep it up!</div>}
+                                </div>
+                            </div>
+                        </div>
+                        {bakingStats.mostBaked && bakingStats.mostBaked.timesCooked > 0 && (
+                            <div style={ds.statCardWide}>
+                                <div style={ds.statCardLabel}>Most-Baked Recipe</div>
+                                <div style={ds.topRecipeCard}>
+                                    <div style={ds.topRecipeEmoji}>
+                                        {bakingStats.mostBaked.photo
+                                            ? <img src={bakingStats.mostBaked.photo} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 12 }} />
+                                            : <span>{EMOJI_MAP[bakingStats.mostBaked.category] || "🧁"}</span>}
+                                    </div>
+                                    <div style={ds.topRecipeInfo}>
+                                        <div style={ds.topRecipeName}>{bakingStats.mostBaked.name}</div>
+                                        <div style={ds.topRecipeMeta}>{bakingStats.mostBaked.category}</div>
+                                    </div>
+                                    <div style={ds.topRecipeBadge}>{bakingStats.mostBaked.timesCooked}x</div>
+                                </div>
+                            </div>
+                        )}
+                        {bakingStats.favCategory && (
+                            <div style={ds.statCardWide}>
+                                <div style={ds.statCardLabel}>Favorite Category</div>
+                                <div style={ds.topRecipeCard}>
+                                    <div style={ds.topRecipeEmoji}><span>{EMOJI_MAP[bakingStats.favCategory[0]] || "🧁"}</span></div>
+                                    <div style={ds.topRecipeInfo}>
+                                        <div style={ds.topRecipeName}>{bakingStats.favCategory[0]}</div>
+                                        <div style={ds.topRecipeMeta}>{bakingStats.favCategory[1]} total bakes</div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Category breakdown */}
+                    {bakingStats.categoryBreakdown.some((c) => c.count > 0) && (
+                        <div style={ds.section}>
+                            <h2 style={ds.sectionTitle}>Bakes by Category</h2>
+                            <div style={{ marginTop: 12 }}>
+                                {bakingStats.categoryBreakdown.filter((c) => c.count > 0).map((cat) => (
+                                    <div key={cat.name} style={ds.categoryBar}>
+                                        <span style={ds.categoryBarLabel}>{cat.emoji} {cat.name}</span>
+                                        <div style={ds.categoryBarTrack}>
+                                            <div style={{ ...ds.categoryBarFill, width: `${(cat.count / bakingStats.maxCategoryCount) * 100}%` }} />
+                                        </div>
+                                        <span style={ds.categoryBarCount}>{cat.count}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Monthly Activity Heatmap */}
+                    <div style={ds.heatmapSection}>
+                        <h2 style={ds.heatmapTitle}>Monthly Activity</h2>
+                        <div style={ds.heatmapMonthBar}>
+                            <button style={ds.heatmapMonthBtn} onClick={() => shiftStatsMonth(-1)}>{Icons.back({ size: 16 })}</button>
+                            <span style={ds.heatmapMonthLabel}>{fmtMonth(statsMonth)}</span>
+                            <button style={ds.heatmapMonthBtn} onClick={() => shiftStatsMonth(1)}><div style={{ transform: "rotate(180deg)", display: "flex" }}>{Icons.back({ size: 16 })}</div></button>
+                        </div>
+                        <div style={ds.heatmapWeekRow}>{WEEK_DAYS.map((d) => <div key={d} style={ds.heatmapWeekCell}>{d}</div>)}</div>
+                        <div style={ds.heatmapGrid}>
+                            {statsHeatmapData.cells.map((dayString, i) => {
+                                if (!dayString) return <div key={`he-${i}`} style={ds.heatmapEmpty} />;
+                                const count = statsHeatmapData.entriesByDate[dayString] || 0;
+                                const intensity = count > 0 ? Math.min(count / statsHeatmapData.maxCount, 1) : 0;
+                                const dayNum = parseInt(dayString.split("-")[2], 10);
+                                const isToday = dayString === getTodayISO();
+                                const bg = count === 0
+                                    ? c.warm
+                                    : `rgba(${darkMode ? "224,139,109" : "212,119,91"}, ${0.2 + intensity * 0.8})`;
+                                return (
+                                    <div key={dayString} style={{
+                                        ...ds.heatmapCell,
+                                        background: bg,
+                                        color: count > 0 ? "#fff" : c.textLight,
+                                        fontWeight: count > 0 ? 700 : 500,
+                                        border: isToday ? `2px solid ${c.accent}` : "2px solid transparent",
+                                    }}>
+                                        {dayNum}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        <div style={ds.heatmapLegend}>
+                            <span>Less</span>
+                            <div style={{ ...ds.heatmapLegendBox, background: c.warm }} />
+                            <div style={{ ...ds.heatmapLegendBox, background: `rgba(${darkMode ? "224,139,109" : "212,119,91"}, 0.3)` }} />
+                            <div style={{ ...ds.heatmapLegendBox, background: `rgba(${darkMode ? "224,139,109" : "212,119,91"}, 0.6)` }} />
+                            <div style={{ ...ds.heatmapLegendBox, background: `rgba(${darkMode ? "224,139,109" : "212,119,91"}, 1)` }} />
+                            <span>More</span>
+                        </div>
+                    </div>
+
+                    {/* Empty state */}
+                    {bakingStats.totalBakes === 0 && recipes.every((r) => !r.timesCooked) && (
+                        <div style={ds.emptyState}>
+                            <div style={{ fontSize: 48, marginBottom: 12 }}>🧑‍🍳</div>
+                            <p style={{ color: c.textLight, fontSize: 15 }}>No baking data yet!</p>
+                            <p style={{ color: c.textLight, fontSize: 13, marginTop: 4, opacity: 0.7 }}>Start logging your bakes to see stats here</p>
+                        </div>
+                    )}
+                    <div style={{ height: 40 }} />
                 </div>
             )}
 
