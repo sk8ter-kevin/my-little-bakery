@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { CATEGORIES, UNITS, SAMPLE_RECIPES, EMOJI_MAP, WEEK_DAYS, lightColors, darkColors } from "./utils/constants";
-import { uid, getTodayISO, getMonthISO, fileToDataUrl, compressImage, haptic, fmtDate, fmtMonth, fmtTimer } from "./utils/helpers";
+import { uid, getTodayISO, getMonthISO, fileToDataUrl, compressImage, haptic, fmtDate, fmtMonth, fmtTimer, toFraction } from "./utils/helpers";
 import { parseRecipeText } from "./utils/recipeParser";
 import { importRecipeFromUrl } from "./utils/urlImporter";
 import { buildRecipePdf } from "./utils/pdfBuilder";
@@ -427,7 +427,7 @@ export default function RecipeOrganizer() {
 
     const generateShoppingList = (recipe, scale = 1) => {
         const items = recipe.ingredients.map((ing) => ({
-            name: ing.name, amount: +(ing.amount * scale).toFixed(2), unit: ing.unit, recipe: recipe.name, checked: false,
+            name: ing.name, amount: toFraction(ing.amount * scale), unit: ing.unit, recipe: recipe.name, checked: false,
         }));
         setShoppingList((prev) => [...prev, ...items]);
         haptic("medium");
@@ -764,7 +764,7 @@ export default function RecipeOrganizer() {
                     </div>
                     <div style={ds.section}>
                         <div style={ds.sectionHeader}><h2 style={ds.sectionTitle}>Ingredients</h2><button style={ds.shopBtn} onClick={() => generateShoppingList(selectedRecipe, scaleFactor)}>{Icons.cart({ size: 15 })} Add to List</button></div>
-                        <div style={ds.ingredientsList}>{selectedRecipe.ingredients?.map((ing, i) => (<div key={i} style={ds.ingredientRow}><span style={ds.ingredientAmount}>{+(ing.amount * scaleFactor).toFixed(2)} {ing.unit}</span><span style={ds.ingredientName}>{ing.name}</span></div>))}</div>
+                        <div style={ds.ingredientsList}>{selectedRecipe.ingredients?.map((ing, i) => (<div key={i} style={ds.ingredientRow}><span style={ds.ingredientAmount}>{toFraction(ing.amount * scaleFactor)} {ing.unit}</span><span style={ds.ingredientName}>{ing.name}</span></div>))}</div>
                     </div>
                     <div style={ds.section}>
                         <h2 style={ds.sectionTitle}>Instructions</h2>

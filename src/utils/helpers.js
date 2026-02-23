@@ -54,6 +54,44 @@ export const fmtMonth = (monthString) => {
     return date.toLocaleDateString("en-US", { month: "long", year: "numeric" });
 };
 
+// ─── Fraction formatting ───
+export const toFraction = (value) => {
+    if (value == null || isNaN(value) || value === 0) return "0";
+    const whole = Math.floor(value);
+    const decimal = value - whole;
+
+    const fractions = [
+        [1, 8, 1 / 8],
+        [1, 4, 1 / 4],
+        [1, 3, 1 / 3],
+        [3, 8, 3 / 8],
+        [1, 2, 1 / 2],
+        [5, 8, 5 / 8],
+        [2, 3, 2 / 3],
+        [3, 4, 3 / 4],
+        [7, 8, 7 / 8],
+    ];
+
+    if (decimal < 0.01) return `${whole}`;
+
+    let closest = null;
+    let minDiff = Infinity;
+    for (const [num, den, val] of fractions) {
+        const diff = Math.abs(decimal - val);
+        if (diff < minDiff) {
+            minDiff = diff;
+            closest = [num, den];
+        }
+    }
+
+    if (minDiff < 0.05) {
+        const frac = `${closest[0]}/${closest[1]}`;
+        return whole > 0 ? `${whole} ${frac}` : frac;
+    }
+
+    return `${+value.toFixed(2)}`;
+};
+
 // ─── Timer formatting ───
 export const fmtTimer = (secs) => {
     const m = Math.floor(secs / 60);

@@ -1,3 +1,5 @@
+import { toFraction } from "./helpers";
+
 // ─── PDF Builder ───
 export const buildRecipePdf = (recipe) => {
     // Lightweight PDF generator — uses only built-in Helvetica fonts
@@ -88,7 +90,7 @@ export const buildRecipePdf = (recipe) => {
     colorText("Ingredients", 14, "HB", ...ACCENT.split(" ").map(Number));
     y -= 4;
     for (const ing of recipe.ingredients || []) {
-        const amt = ing.amount ? `${+(+ing.amount).toFixed(2)} ${ing.unit || ""}`.trim() : "";
+        const amt = ing.amount ? `${toFraction(+ing.amount)} ${ing.unit || ""}`.trim() : "";
         const line = amt ? `${amt}  ${ing.name}` : ing.name;
         const wrapped = wrapText(line, 10, 75);
         for (let i = 0; i < wrapped.length; i++) {
