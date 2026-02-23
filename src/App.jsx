@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { CATEGORIES, UNITS, SAMPLE_RECIPES, EMOJI_MAP, WEEK_DAYS, lightColors, darkColors } from "./utils/constants";
 import { uid, getTodayISO, getMonthISO, fileToDataUrl, compressImage, haptic, fmtDate, fmtMonth, fmtTimer } from "./utils/helpers";
-import { parseRecipeText, extractTextFromPdf } from "./utils/recipeParser";
+import { parseRecipeText } from "./utils/recipeParser";
+import { importRecipeFromUrl } from "./utils/urlImporter";
 import { buildRecipePdf } from "./utils/pdfBuilder";
 import { loadData, saveData } from "./hooks/useStorage";
 import { useSwipe } from "./hooks/useSwipe";
@@ -46,8 +47,9 @@ export default function RecipeOrganizer() {
     const [sortBy, setSortBy] = useState("recent");
     const [recentlyViewed, setRecentlyViewed] = useState([]);
     const [fabExpanded, setFabExpanded] = useState(false);
-    const [pdfImporting, setPdfImporting] = useState(false);
-    const pdfInputRef = useRef(null);
+    const [urlImporting, setUrlImporting] = useState(false);
+    const [showUrlImport, setShowUrlImport] = useState(false);
+    const [importUrl, setImportUrl] = useState("");
     const transitionTimerRef = useRef(null);
     const photoInputRef = useRef(null);
     const bakeLogPhotoInputRef = useRef(null);
@@ -263,33 +265,27 @@ export default function RecipeOrganizer() {
         e.target.value = "";
     };
 
-    // PDF import handler (lazy-loaded)
-    const handlePdfImport = async (e) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        if (file.type !== "application/pdf") { showToast("Please select a PDF file"); e.target.value = ""; return; }
-        if (file.size > 10 * 1024 * 1024) { showToast("PDF is too large (max 10MB)"); e.target.value = ""; return; }
-        setPdfImporting(true);
+    // URL import handler
+    const handleUrlImport = async () => {
+        const url = importUrl.trim();
+        if (!url) { showToast("Please enter a URL"); return; }
+        try { new URL(url); } catch { showToast("Please enter a valid URL"); return; }
+        setShowUrlImport(false);
+        setUrlImporting(true);
         haptic("medium");
         try {
-            const rawText = await extractTextFromPdf(file);
-            if (!rawText || rawText.trim().length < 20) throw new Error("NO_TEXT");
-            const parsed = parseRecipeText(rawText);
+            const parsed = await importRecipeFromUrl(url);
             setEditForm({ ...parsed });
-            setPdfImporting(false);
+            setUrlImporting(false);
             navigateTo("edit", "forward");
             showToast("Recipe imported! Review & save below 📋");
             haptic("success");
         } catch (err) {
-            setPdfImporting(false);
-            if (err.message === "NO_TEXT") {
-                showToast("Couldn't read text from this PDF. It may be a scanned image.");
-            } else {
-                console.error("PDF import error:", err);
-                showToast("Couldn't import this PDF. Try another file.");
-            }
+            setUrlImporting(false);
+            console.error("URL import error:", err);
+            showToast("Couldn't import recipe from this URL. Try another link.");
         }
-        e.target.value = "";
+        setImportUrl("");
     };
 
     // Filtered + sorted recipes
@@ -498,17 +494,39 @@ export default function RecipeOrganizer() {
                 </div>
             )}
 
-            {/* Hidden PDF input */}
-            <input ref={pdfInputRef} type="file" accept="application/pdf" onChange={handlePdfImport} style={{ display: "none" }} />
             <input ref={bakeLogPhotoInputRef} type="file" accept="image/*" multiple onChange={handleBakeLogPhotos} style={{ display: "none" }} />
 
-            {/* PDF Import Loading Overlay */}
-            {pdfImporting && (
-                <div style={ds.pdfLoadingOverlay}>
-                    <div style={ds.pdfLoadingCard}>
-                        <div style={{ fontSize: 48, animation: "cupcakeBounce 1.5s ease-in-out infinite" }}>📄</div>
-                        <div style={ds.pdfLoadingTitle}>Reading recipe...</div>
-                        <div style={ds.pdfLoadingSubtitle}>Extracting ingredients & instructions</div>
+            {/* URL Import Modal */}
+            {showUrlImport && (
+                <>
+                    <div style={ds.urlImportOverlay} onClick={() => { setShowUrlImport(false); setImportUrl(""); }} />
+                    <div style={ds.urlImportModal}>
+                        <h2 style={ds.urlImportTitle}>Import from URL</h2>
+                        <p style={ds.urlImportSubtitle}>Paste a link from any recipe website</p>
+                        <input
+                            style={ds.formInput}
+                            type="url"
+                            value={importUrl}
+                            onChange={(e) => setImportUrl(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === "Enter") handleUrlImport(); }}
+                            placeholder="https://www.example.com/recipe..."
+                            autoFocus
+                        />
+                        <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+                            <button style={{ ...ds.actionBtn, flex: 1 }} onClick={() => { setShowUrlImport(false); setImportUrl(""); }}>Cancel</button>
+                            <button style={{ ...ds.actionBtn, ...ds.actionBtnPrimary, flex: 1 }} onClick={handleUrlImport}>{Icons.link({ size: 16, color: "#fff" })} Import</button>
+                        </div>
+                    </div>
+                </>
+            )}
+
+            {/* URL Import Loading Overlay */}
+            {urlImporting && (
+                <div style={ds.importLoadingOverlay}>
+                    <div style={ds.importLoadingCard}>
+                        <div style={{ fontSize: 48, animation: "cupcakeBounce 1.5s ease-in-out infinite" }}>🔗</div>
+                        <div style={ds.importLoadingTitle}>Importing recipe...</div>
+                        <div style={ds.importLoadingSubtitle}>Fetching from website</div>
                         <div style={{ width: 120, height: 4, borderRadius: 2, background: `linear-gradient(90deg, ${c.warm}, ${c.accent}, ${c.warm})`, backgroundSize: "400px 4px", animation: "shimmer 1.5s infinite linear" }} />
                     </div>
                 </div>
@@ -621,7 +639,7 @@ export default function RecipeOrganizer() {
                     {fabExpanded && (<div style={ds.fabOverlay} onClick={() => setFabExpanded(false)} />)}
                     {fabExpanded && (
                         <div style={ds.fabMenu}>
-                            <div style={ds.fabMenuRow}><span style={ds.fabMenuLabel}>Import PDF</span><button style={ds.fabMini} onClick={() => { setFabExpanded(false); pdfInputRef.current?.click(); }}>{Icons.upload({ size: 20, color: "#fff" })}</button></div>
+                            <div style={ds.fabMenuRow}><span style={ds.fabMenuLabel}>Import URL</span><button style={ds.fabMini} onClick={() => { setFabExpanded(false); setImportUrl(""); setShowUrlImport(true); }}>{Icons.link({ size: 20, color: "#fff" })}</button></div>
                             <div style={ds.fabMenuRow}><span style={ds.fabMenuLabel}>New Recipe</span><button style={ds.fabMini} onClick={() => { setFabExpanded(false); setEditForm({ name: "", category: "Cookies", servings: 12, prepTime: 15, cookTime: 20, ingredients: [{ name: "", amount: 1, unit: "cups" }], instructions: "", tags: [], favorite: false, lastMade: null, notes: "", photo: null }); navigateTo("edit", "forward"); }}>{Icons.edit({ size: 18, color: "#fff" })}</button></div>
                         </div>
                     )}
