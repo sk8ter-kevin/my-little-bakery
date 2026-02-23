@@ -25,6 +25,29 @@ const UNIT_MAP = {
 
 const UNICODE_FRACTIONS = { "\u00BD": 0.5, "\u2153": 0.333, "\u2154": 0.667, "\u00BC": 0.25, "\u00BE": 0.75, "\u215B": 0.125, "\u215C": 0.375, "\u215D": 0.625, "\u215E": 0.875 };
 
+// ── Filter out recipe metadata / UI junk lines that aren't ingredients ──
+const METADATA_LINE_RE = /^(prep|cook|total|course|cuisine|servings?|calories?|yield|makes?|author|submitted|rated?|rating|reviews?|print|save|share|pin|jump to|skip to|advertisement|sponsored|nutrition(?:al)?\s*(?:info|facts)?|keywords?|description|summary|equipment|tools needed)\b/i;
+const METADATA_COMBO_RE = /^(prep\s+cook\s+total|course\s+cuisine|servings?\s+calories?|prep\s+time|cook\s+time|total\s+time)\s*$/i;
+const TIME_ONLY_RE = /^(\d+\s*(mins?|minutes?|hrs?|hours?|h|m)\s*)+$/i;
+const SUB_SECTION_RE = /^(for\s+the\s+.+|fillings?|toppings?|frosting|icing|glaze|ganache|garnish|assembly|decoration|sauce|crust|base|meringue|batter|dough|filling ingredients?|macaron shells?)\s*:?\s*$/i;
+
+const isJunkIngredientLine = (line) => {
+    const l = line.trim();
+    if (METADATA_LINE_RE.test(l)) return true;
+    if (METADATA_COMBO_RE.test(l)) return true;
+    if (TIME_ONLY_RE.test(l)) return true;
+    if (SUB_SECTION_RE.test(l)) return true;
+    // Pure numbers with units of time (e.g. "5 mins 15 mins 20 mins")
+    if (/^\d+\s*(mins?|minutes?|hrs?|hours?)\s+\d+\s*(mins?|minutes?|hrs?|hours?)/i.test(l)) return true;
+    // Very short all-caps lines that look like labels (e.g. "COURSE", "SERVINGS")
+    if (l.length < 20 && /^[A-Z\s]+$/.test(l) && !/[a-z]/.test(l) && l.split(/\s+/).length <= 3) {
+        const words = l.toLowerCase().split(/\s+/);
+        const metaWords = ["prep", "cook", "total", "course", "cuisine", "servings", "calories", "time", "yield", "makes", "nutrition", "print", "save", "share"];
+        if (words.some((w) => metaWords.includes(w))) return true;
+    }
+    return false;
+};
+
 const parseFraction = (str) => {
     let s = str.trim();
     for (const [ch, val] of Object.entries(UNICODE_FRACTIONS)) {
@@ -44,6 +67,7 @@ const parseFraction = (str) => {
 const parseIngredientLine = (line) => {
     let l = line.replace(/^[\s\u2022\u2023\u25E6\u2043\u2219\-\*\u2013\u2014\u25CF\u25CB\u00B7\u203A\u2192]+\s*/, "").trim();
     if (!l) return null;
+    if (isJunkIngredientLine(l)) return null;
     const ingredientRegex = /^([\d\s\/\u00BC-\u00BE\u2150-\u215E.]+)?\s*(cups?|tablespoons?|tbsp?|tbs?|teaspoons?|tsp?|ts|ounces?|oz|pounds?|lbs?|lb|grams?|g|kilograms?|kg|milliliters?|ml|liters?|l|pieces?|pcs|pinch(?:es)?|whole|slices?|cloves?|cans?|bags?|sticks?|bunch(?:es)?|large|medium|small|dash(?:es)?|c\b)\.?\s+(.+)/i;
     const match = l.match(ingredientRegex);
     if (match) {
@@ -65,24 +89,39 @@ export const parseRecipeText = (rawText) => {
     const text = rawText.replace(/\r\n/g, "\n").replace(/\t/g, " ").replace(/ {2,}/g, " ").trim();
     const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
 
-    // ── Recipe name: first non-junk line ──
-    let name = "";
-    for (const line of lines) {
-        const low = line.toLowerCase();
-        if (low.startsWith("http") || low.startsWith("www.")) continue;
-        if (/^(print|skip to|jump to|home|menu|search|log ?in|sign ?up|advertisement)/i.test(low)) continue;
-        if (line.length > 3 && line.length < 120) {
-            name = line.replace(/\s*recipe\s*$/i, "").trim();
-            break;
-        }
-    }
-
-    // ── Section detection ──
+    // ── Section detection patterns ──
     const sectionPatterns = {
         ingredients: /^(ingredients|what you.?ll need|you.?ll need|shopping list)\s*:?\s*$/i,
         instructions: /^(instructions|directions|method|steps|preparation|how to make|procedure)\s*:?\s*$/i,
         notes: /^(notes|tips|chef.?s? notes?|cook.?s? notes?|variations?)\s*:?\s*$/i,
     };
+
+    // ── Recipe name: first non-junk line (may span multiple lines) ──
+    let name = "";
+    let nameEndIdx = -1;
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const low = line.toLowerCase();
+        if (low.startsWith("http") || low.startsWith("www.")) continue;
+        if (/^(print|skip to|jump to|home|menu|search|log ?in|sign ?up|advertisement)/i.test(low)) continue;
+        if (isJunkIngredientLine(line)) continue;
+        if (line.length > 3 && line.length < 120) {
+            name = line.replace(/\s*recipe\s*$/i, "").trim();
+            nameEndIdx = i;
+            // Check if the next line continues the title (short, no numbers, not a section header, not metadata)
+            for (let j = i + 1; j < lines.length && j <= i + 2; j++) {
+                const next = lines[j];
+                if (!next || next.length > 40 || next.length < 2) break;
+                if (isJunkIngredientLine(next)) break;
+                if (/^[\d\u00BC-\u00BE\u2150-\u215E]/.test(next)) break;
+                const isHeaderLike = Object.values(sectionPatterns).some((p) => p.test(next));
+                if (isHeaderLike) break;
+                name = (name + " " + next).trim();
+                nameEndIdx = j;
+            }
+            break;
+        }
+    }
 
     const sections = { ingredients: [], instructions: [], notes: [] };
     let currentSection = null;
@@ -114,6 +153,7 @@ export const parseRecipeText = (rawText) => {
     // ── Parse ingredients ──
     let ingredients = sections.ingredients
         .filter((l) => l.length > 1)
+        .filter((l) => !isJunkIngredientLine(l))
         .map(parseIngredientLine)
         .filter(Boolean);
 
@@ -128,6 +168,7 @@ export const parseRecipeText = (rawText) => {
         const ingLines = [];
         const instrLines = [];
         for (const line of lines) {
+            if (isJunkIngredientLine(line)) continue;
             if (/^[\d\u00BC-\u00BE\u2150-\u215E]/.test(line) && line.length < 80) {
                 ingLines.push(line);
             } else if (
