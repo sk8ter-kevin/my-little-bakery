@@ -313,7 +313,7 @@ export const getStyles = (colors) => ({
         justifyContent: "center",
         cursor: "pointer",
     },
-    pdfLoadingOverlay: {
+    importLoadingOverlay: {
         position: "fixed",
         inset: 0,
         zIndex: 500,
@@ -324,7 +324,7 @@ export const getStyles = (colors) => ({
         justifyContent: "center",
         animation: "backdropFadeIn 0.2s ease",
     },
-    pdfLoadingCard: {
+    importLoadingCard: {
         background: colors.card,
         borderRadius: 20,
         padding: "32px 40px",
@@ -334,16 +334,51 @@ export const getStyles = (colors) => ({
         gap: 16,
         boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
     },
-    pdfLoadingTitle: {
+    importLoadingTitle: {
         fontSize: 16,
         fontWeight: 600,
         color: colors.text,
         fontFamily: "'Georgia', serif",
     },
-    pdfLoadingSubtitle: {
+    importLoadingSubtitle: {
         fontSize: 13,
         color: colors.textLight,
         fontFamily: "system-ui, sans-serif",
+    },
+    urlImportOverlay: {
+        position: "fixed",
+        inset: 0,
+        zIndex: 500,
+        background: "rgba(0,0,0,0.5)",
+        animation: "backdropFadeIn 0.2s ease",
+    },
+    urlImportModal: {
+        position: "fixed",
+        top: "50%",
+        left: "50%",
+        transform: "translate(-50%, -50%)",
+        zIndex: 501,
+        background: colors.card,
+        borderRadius: 20,
+        padding: "28px 24px",
+        width: "calc(100% - 48px)",
+        maxWidth: 400,
+        boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
+        animation: "fadeIn 0.2s ease",
+        boxSizing: "border-box",
+    },
+    urlImportTitle: {
+        fontSize: 18,
+        fontWeight: 700,
+        color: colors.text,
+        margin: "0 0 6px",
+        fontFamily: "'Georgia', serif",
+    },
+    urlImportSubtitle: {
+        fontSize: 13,
+        color: colors.textLight,
+        fontFamily: "system-ui, sans-serif",
+        margin: "0 0 16px",
     },
 
     // Detail view
