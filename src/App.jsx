@@ -43,6 +43,7 @@ export default function RecipeOrganizer() {
     const wakeLockRef = useRef(null);
     const [timers, setTimers] = useState([]);
     const [contextMenu, setContextMenu] = useState(null);
+    const [deleteConfirm, setDeleteConfirm] = useState(null);
     const longPressTimerRef = useRef(null);
     const [sortBy, setSortBy] = useState("recent");
     const [recentlyViewed, setRecentlyViewed] = useState([]);
@@ -481,10 +482,17 @@ export default function RecipeOrganizer() {
     };
 
     const deleteRecipe = (id) => {
-        const deleted = recipes.find((r) => r.id === id);
-        if (!deleted) return;
+        const recipe = recipes.find((r) => r.id === id);
+        if (!recipe) return;
+        setDeleteConfirm(recipe);
+    };
+
+    const confirmDelete = () => {
+        if (!deleteConfirm) return;
+        const deleted = deleteConfirm;
+        setDeleteConfirm(null);
         haptic("error");
-        setRecipes((prev) => prev.filter((r) => r.id !== id));
+        setRecipes((prev) => prev.filter((r) => r.id !== deleted.id));
         navigateTo("home", "back");
         showToast("Recipe deleted", {
             label: "Undo",
@@ -1090,6 +1098,23 @@ export default function RecipeOrganizer() {
                         </div>
                     ))}
                 </div>
+            )}
+
+            {/* ─── DELETE CONFIRMATION ─── */}
+            {deleteConfirm && (
+                <>
+                    <div style={ds.bottomSheetBackdrop} onClick={() => setDeleteConfirm(null)} />
+                    <div style={{ ...ds.bottomSheet, textAlign: "center", padding: "20px 24px calc(24px + env(safe-area-inset-bottom))" }}>
+                        <div style={ds.bottomSheetHandle} />
+                        <div style={{ fontSize: 36, marginBottom: 8 }}>🗑️</div>
+                        <div style={{ fontSize: 16, fontWeight: 700, color: c.text, fontFamily: "'Georgia', serif", marginBottom: 6 }}>Delete "{deleteConfirm.name}"?</div>
+                        <div style={{ fontSize: 14, color: c.textLight, marginBottom: 20 }}>This can be undone briefly after deletion.</div>
+                        <div style={{ display: "flex", gap: 12 }}>
+                            <button onClick={() => setDeleteConfirm(null)} style={{ flex: 1, padding: "12px 0", borderRadius: 12, border: `1px solid ${c.border}`, background: c.card, color: c.text, fontSize: 15, fontWeight: 600, cursor: "pointer", fontFamily: "system-ui, sans-serif" }}>Cancel</button>
+                            <button onClick={confirmDelete} style={{ flex: 1, padding: "12px 0", borderRadius: 12, border: "none", background: "#c0392b", color: "#fff", fontSize: 15, fontWeight: 600, cursor: "pointer", fontFamily: "system-ui, sans-serif" }}>Delete</button>
+                        </div>
+                    </div>
+                </>
             )}
 
             {/* ─── BOTTOM SHEET CONTEXT MENU ─── */}
