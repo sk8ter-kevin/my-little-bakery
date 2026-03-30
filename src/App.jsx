@@ -51,6 +51,7 @@ export default function RecipeOrganizer() {
     const [urlImporting, setUrlImporting] = useState(false);
     const [showUrlImport, setShowUrlImport] = useState(false);
     const [importUrl, setImportUrl] = useState("");
+    const jsonImportRef = useRef(null);
     const transitionTimerRef = useRef(null);
     const photoInputRef = useRef(null);
     const bakeLogPhotoInputRef = useRef(null);
@@ -220,6 +221,55 @@ export default function RecipeOrganizer() {
             if (e.name !== "AbortError") showToast("Couldn't create PDF");
         }
         closeContextMenu();
+    };
+
+    // Export all recipes as JSON
+    const exportRecipes = () => {
+        const data = JSON.stringify({ recipes, bakeLogEntries }, null, 2);
+        const blob = new Blob([data], { type: "application/json" });
+        const file = new File([blob], `my-little-bakery-backup.json`, { type: "application/json" });
+        if (navigator.share && navigator.canShare?.({ files: [file] })) {
+            navigator.share({ files: [file], title: "My Little Bakery Backup" }).then(() => showToast("Backup shared!")).catch((e) => { if (e.name !== "AbortError") showToast("Share cancelled"); });
+        } else {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url; a.download = file.name; a.click();
+            URL.revokeObjectURL(url);
+            showToast("Backup downloaded!");
+        }
+    };
+
+    // Import recipes from JSON backup
+    const handleJsonImport = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        e.target.value = "";
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            try {
+                const data = JSON.parse(ev.target.result);
+                const imported = data.recipes || data;
+                if (!Array.isArray(imported) || imported.length === 0) { showToast("No recipes found in file"); return; }
+                const existingIds = new Set(recipes.map((r) => r.id));
+                let added = 0;
+                let updated = 0;
+                const merged = [...recipes];
+                for (const r of imported) {
+                    if (!r.name) continue;
+                    const idx = merged.findIndex((e) => e.id === r.id);
+                    if (idx >= 0) { merged[idx] = { ...merged[idx], ...r }; updated++; }
+                    else { merged.unshift({ ...r, id: r.id || uid() }); added++; }
+                }
+                setRecipes(merged);
+                if (data.bakeLogEntries?.length) {
+                    const existingLogIds = new Set(bakeLogEntries.map((e) => e.id));
+                    const newLogs = data.bakeLogEntries.filter((e) => !existingLogIds.has(e.id));
+                    if (newLogs.length) setBakeLogEntries((prev) => [...prev, ...newLogs]);
+                }
+                showToast(`Imported ${added} new, ${updated} updated recipes`);
+            } catch { showToast("Invalid backup file"); }
+        };
+        reader.readAsText(file);
     };
 
     // Recently viewed tracking
@@ -586,6 +636,7 @@ export default function RecipeOrganizer() {
                 </div>
             )}
 
+            <input ref={jsonImportRef} type="file" accept="application/json,.json" onChange={handleJsonImport} style={{ display: "none" }} />
             <input ref={bakeLogPhotoInputRef} type="file" accept="image/*" multiple onChange={handleBakeLogPhotos} style={{ display: "none" }} />
 
             {/* URL Import Modal */}
@@ -732,6 +783,8 @@ export default function RecipeOrganizer() {
                     {fabExpanded && (<div style={ds.fabOverlay} onClick={() => setFabExpanded(false)} />)}
                     {fabExpanded && (
                         <div style={ds.fabMenu}>
+                            <div style={ds.fabMenuRow}><span style={ds.fabMenuLabel}>Import Backup</span><button style={ds.fabMini} onClick={() => { setFabExpanded(false); jsonImportRef.current?.click(); }}>{Icons.upload({ size: 20, color: "#fff" })}</button></div>
+                            <div style={ds.fabMenuRow}><span style={ds.fabMenuLabel}>Export Backup</span><button style={ds.fabMini} onClick={() => { setFabExpanded(false); exportRecipes(); }}>{Icons.download({ size: 20, color: "#fff" })}</button></div>
                             <div style={ds.fabMenuRow}><span style={ds.fabMenuLabel}>Import URL</span><button style={ds.fabMini} onClick={() => { setFabExpanded(false); setImportUrl(""); setShowUrlImport(true); }}>{Icons.link({ size: 20, color: "#fff" })}</button></div>
                             <div style={ds.fabMenuRow}><span style={ds.fabMenuLabel}>New Recipe</span><button style={ds.fabMini} onClick={() => { setFabExpanded(false); setEditForm({ name: "", category: "Cookies", servings: 12, prepTime: 15, cookTime: 20, ingredients: [{ name: "", amount: 1, unit: "cups" }], instructions: "", tags: [], favorite: false, lastMade: null, notes: "", photo: null }); navigateTo("edit", "forward"); }}>{Icons.edit({ size: 18, color: "#fff" })}</button></div>
                         </div>
